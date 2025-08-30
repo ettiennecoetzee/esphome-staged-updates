@@ -52,6 +52,22 @@ blueprint:
       selector: { time: {} }
       default: "02:30:00"
 
+    notify_service:
+      name: Optional mobile notification service
+      description: Enter a notify service id, e.g. notify.mobile_app_pixel_7. Leave blank to disable.
+      selector: { text: {} }
+      default: ""
+
+    notify_on_stage:
+      name: Send mobile notification when staging starts
+      selector: { boolean: {} }
+      default: true
+
+    notify_on_push:
+      name: Send mobile notification when push completes
+      selector: { boolean: {} }
+      default: true
+
 mode: restart
 max_exceeded: silent
 
@@ -64,6 +80,9 @@ variables:
   detector_entity: !input detector_entity
   action_mode: !input action_mode
   maintenance_time: !input maintenance_time
+  notify_service: !input notify_service
+  notify_on_stage: !input notify_on_stage
+  notify_on_push: !input notify_on_push
 
   selected_updates: >
     {% set tgt = iif(this.inputs.devices_to_manage is defined, this.inputs.devices_to_manage, {}) %}
@@ -135,6 +154,16 @@ action:
             - JSON: /local/esphome_bins/last_run.json
             - Markdown: /local/esphome_bins/last_run.md
 
+      - if:
+          - condition: template
+            value_template: "{{ notify_service | length > 0 and notify_on_stage }}"
+        then:
+          - service: "{{ notify_service }}"
+            data:
+              title: "ESPHome Staging Started"
+              message: >
+                Compiling {{ nodes | length }} node(s).\nBinaries: {{ binaries_path }}.\nMarkdown report: /local/esphome_bins/last_run.md
+
       - choose:
           - conditions:
               - condition: template
@@ -159,6 +188,16 @@ action:
                   message: >
                     Attempted OTA for {{ managed_entities | length }} device(s).
                     See /local/esphome_bins/last_run.md for a readable summary.
+
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service | length > 0 and notify_on_push }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      title: "ESPHome Push Complete"
+                      message: >
+                        Attempted OTA for {{ managed_entities | length }} device(s).\nMarkdown: /local/esphome_bins/last_run.md
     else:
       - service: persistent_notification.create
         data:

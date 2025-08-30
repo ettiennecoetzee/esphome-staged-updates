@@ -1,5 +1,20 @@
 # ESPHome Staged Updates for Home Assistant
 
+## Purpose
+
+This blueprint and scripts implement a **two‑phase ESPHome firmware workflow** for Home Assistant:
+
+- **Detect** when a new ESPHome release is available on your system.
+- **Stage (Compile)** firmware binaries for selected ESPHome nodes ahead of time, storing them under `/config/www/esphome_bins/` so they are instantly available via `/local/` URLs.
+- **Push (Install)** at a scheduled maintenance window, triggering each device’s `update.install` so the device downloads and flashes its **prebuilt** binary from your Home Assistant web server.
+
+### Why use it
+- Reduce downtime during maintenance windows because the compile step is already done.
+- Keep tight control of *when* devices update.
+- Get clear, shareable **reports** (JSON and Markdown) for audit and troubleshooting.
+- Optional **mobile notifications** when staging starts and when push completes.
+
+
 Two-phase firmware workflow:
 1. **Stage**: compile node YAMLs and place binaries in `/config/www/esphome_bins/`  
 2. **Push**: at a maintenance window, call `update.install` on each device’s “staged firmware” entity so it downloads and flashes `/local/esphome_bins/<node>.bin`
