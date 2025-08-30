@@ -1,0 +1,20 @@
+alias: ESPHome Push Staged Binaries at Window (example if you do not use the blueprint)
+id: example_push_window
+mode: parallel
+trigger:
+  - platform: time
+    at: '02:30:00'
+variables:
+  managed_entities: >
+    {{ states.update
+       | map(attribute='entity_id')
+       | select('match', 'update\..*_staged_firmware$')
+       | list }}
+action:
+  - repeat:
+      for_each: "{{ managed_entities }}"
+      sequence:
+        - service: update.install
+          target:
+            entity_id: "{{ repeat.item }}"
+        - delay: '00:00:20'

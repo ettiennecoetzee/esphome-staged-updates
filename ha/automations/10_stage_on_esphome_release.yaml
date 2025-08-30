@@ -1,0 +1,12 @@
+alias: ESPHome Stage Binaries on New Release (example if you do not use the blueprint)
+id: example_stage_on_release
+mode: single
+trigger:
+  - platform: state
+    entity_id: update.esphome_update
+    to: 'on'
+action:
+  - service: shell_command.esphome_stage_bins
+    data:
+      binaries_path: "/config/www/esphome_bins"
+      nodes_csv: ""

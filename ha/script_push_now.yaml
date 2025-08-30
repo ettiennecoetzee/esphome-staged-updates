@@ -1,0 +1,19 @@
+# ha/script_push_now.yaml
+script:
+  esphome_push_staged_now:
+    alias: ESPHome Push Staged Now
+    mode: parallel
+    sequence:
+      - variables:
+          managed_entities: >
+            {{ states.update
+               | map(attribute='entity_id')
+               | select('match', 'update\..*_staged_firmware$')
+               | list }}
+      - repeat:
+          for_each: "{{ managed_entities }}"
+          sequence:
+            - service: update.install
+              target:
+                entity_id: "{{ repeat.item }}"
+            - delay: "00:00:20"

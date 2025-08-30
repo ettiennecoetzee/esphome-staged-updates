@@ -1,0 +1,166 @@
+blueprint:
+  name: ESPHome Staged Updates (Compile or Compile+Push)
+  description: >
+    Detect ESPHome updates on a schedule, compile firmware for selected nodes,
+    and optionally push OTA at a maintenance window. Produces JSON and Markdown reports
+    under /local/esphome_bins/ (last_run.json and last_run.md).
+  domain: automation
+  source_url: https://github.com/yourname/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml
+  input:
+    frequency:
+      name: How often to check
+      selector:
+        select:
+          options: [daily, weekly, monthly]
+          mode: dropdown
+      default: daily
+    check_time:
+      name: Time of day to check
+      selector: { time: {} }
+      default: "02:00:00"
+    weekday:
+      name: Weekly day (if weekly)
+      selector:
+        select:
+          options: [mon, tue, wed, thu, fri, sat, sun]
+          mode: dropdown
+      default: wed
+    month_day:
+      name: Day of month (if monthly, 1-28 recommended)
+      selector: { number: { min: 1, max: 31, mode: slider } }
+      default: 15
+    binaries_path:
+      name: Binaries folder
+      description: Directory to store staged .bin files. Must be under /config to be served via /local.
+      default: /config/www/esphome_bins
+      selector: { text: {} }
+    detector_entity:
+      name: ESPHome update entity to watch
+      description: Select the ESPHome Add-on or Core update entity that turns ON when an update is available.
+      selector: { entity: { domain: update } }
+      default: update.esphome_update
+    devices_to_manage:
+      name: ESPHome devices to include
+      description: Select none to manage ALL. Otherwise pick staged firmware entities.
+      selector: { target: { entity: { domain: update } } }
+    action_mode:
+      name: Action on detection
+      selector: { select: { options: [compile_only, compile_and_push], mode: dropdown } }
+      default: compile_only
+    maintenance_time:
+      name: Maintenance window time (used only if compile_and_push)
+      selector: { time: {} }
+      default: "02:30:00"
+
+mode: restart
+max_exceeded: silent
+
+variables:
+  frequency: !input frequency
+  check_time: !input check_time
+  weekday: !input weekday
+  month_day: !input month_day
+  binaries_path: !input binaries_path
+  detector_entity: !input detector_entity
+  action_mode: !input action_mode
+  maintenance_time: !input maintenance_time
+
+  selected_updates: >
+    {% set tgt = iif(this.inputs.devices_to_manage is defined, this.inputs.devices_to_manage, {}) %}
+    {% set ents = expand(tgt.entity_id | default([])) | map(attribute='entity_id') | list %}
+    {% set filtered = ents
+         | select('match', 'update\..*_staged_firmware$')
+         | list %}
+    {{ filtered }}
+
+  all_staged_updates: >
+    {{ states.update
+       | map(attribute='entity_id')
+       | select('match', 'update\..*_staged_firmware$')
+       | list }}
+
+  managed_entities: >
+    {{ iif(selected_updates | length > 0, selected_updates, all_staged_updates) }}
+
+  nodes: >
+    {{ managed_entities
+       | map('regex_replace', '^update\.', '')
+       | map('regex_replace', '_staged_firmware$', '')
+       | list }}
+
+  nodes_csv: >
+    {{ nodes | join(',') }}
+
+  run_today: >
+    {% set dow = now().weekday() %}
+    {% set map = {'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5,'sun':6} %}
+    {% if frequency == 'daily' %}
+      true
+    {% elif frequency == 'weekly' %}
+      {{ dow == map[weekday] }}
+    {% else %}
+      {{ now().day == month_day }}
+    {% endif %}
+
+trigger:
+  - platform: time
+    at: !input check_time
+
+condition:
+  - condition: template
+    value_template: "{{ run_today }}"
+
+action:
+  - variables:
+      update_available: "{{ is_state(detector_entity, 'on') }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ update_available }}"
+    then:
+      - service: shell_command.esphome_stage_bins
+        data:
+          binaries_path: "{{ binaries_path }}"
+          nodes_csv: "{{ nodes_csv }}"
+
+      - delay: "00:00:05"
+
+      - service: persistent_notification.create
+        data:
+          title: "ESPHome Staging Started"
+          message: >
+            Compiling {{ nodes | length }} node(s).
+            Binaries: {{ binaries_path }}.
+            Reports:
+            - JSON: /local/esphome_bins/last_run.json
+            - Markdown: /local/esphome_bins/last_run.md
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ action_mode == 'compile_and_push' }}"
+            sequence:
+              - wait_for_trigger:
+                  - platform: time
+                    at: "{{ maintenance_time }}"
+                continue_on_timeout: false
+
+              - repeat:
+                  for_each: "{{ managed_entities }}"
+                  sequence:
+                    - service: update.install
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                    - delay: "00:00:20"
+
+              - service: persistent_notification.create
+                data:
+                  title: "ESPHome Push Complete"
+                  message: >
+                    Attempted OTA for {{ managed_entities | length }} device(s).
+                    See /local/esphome_bins/last_run.md for a readable summary.
+    else:
+      - service: persistent_notification.create
+        data:
+          title: "ESPHome Check"
+          message: "No new ESPHome release detected. Skipping."

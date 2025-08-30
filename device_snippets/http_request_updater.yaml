@@ -1,0 +1,17 @@
+# device_snippets/http_request_updater.yaml
+# Include this in each ESPHome node or via substitutions include.
+# Assumes you keep YAML filename stem equal to the node_name used below.
+substitutions:
+  node_name: ${devicename}
+  friendly_name: ${devicename}
+
+http_request:
+
+ota:
+  - platform: esphome
+  - platform: http_request
+
+update:
+  - platform: http_request
+    name: "${friendly_name} staged firmware"
+    source: "http://homeassistant.local:8123/local/esphome_bins/manifest.json"

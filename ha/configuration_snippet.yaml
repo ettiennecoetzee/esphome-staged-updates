@@ -1,0 +1,3 @@
+# ha/configuration_snippet.yaml
+shell_command:
+  esphome_stage_bins: 'bash /config/esphome-staged-updates/scripts/stage_esphome_bins.sh "{{ binaries_path }}" "{{ nodes_csv }}"'
