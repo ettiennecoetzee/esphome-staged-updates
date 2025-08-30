@@ -5,7 +5,7 @@ blueprint:
     and optionally push OTA at a maintenance window. Produces JSON and Markdown reports
     under /local/esphome_bins/ (last_run.json and last_run.md).
   domain: automation
-  source_url: https://github.com/yourname/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml
+  source_url: https://github.com/ettiennecoetzee/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml
   input:
     frequency:
       name: How often to check
