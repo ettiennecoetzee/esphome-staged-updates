@@ -1,5 +1,7 @@
 # ESPHome Staged Updates for Home Assistant
 
+[![Import this Blueprint into Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/<ettiennecoetzee>/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml)
+
 ## Purpose
 
 This blueprint and scripts implement a **two‑phase ESPHome firmware workflow** for Home Assistant:
