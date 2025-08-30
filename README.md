@@ -1,6 +1,6 @@
 # ESPHome Staged Updates for Home Assistant
 
-[![Import this Blueprint into Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/<your-username>/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml)
+[![Import this Blueprint into Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/ettiennecoetzee/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml)
 
 ---
 
@@ -65,7 +65,7 @@ Then restart Home Assistant to apply the change.
 ### 4. Import the Blueprint
 1. Copy this link:  
    ```
-   https://github.com/<your-username>/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml
+   https://github.com/ettiennecoetzee/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml
    ```
 2. In Home Assistant, go to: **Settings → Automations & Scenes → Blueprints → Import Blueprint**.  
 3. Paste the link and click **Preview → Import**.  
