@@ -1,62 +1,148 @@
 # ESPHome Staged Updates for Home Assistant
 
-[![Import this Blueprint into Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/<ettiennecoetzee>/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml)
+[![Import this Blueprint into Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/<your-username>/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml)
 
-## Purpose
+---
 
-This blueprint and scripts implement a **two‑phase ESPHome firmware workflow** for Home Assistant:
+## 🎯 Purpose
 
-- **Detect** when a new ESPHome release is available on your system.
-- **Stage (Compile)** firmware binaries for selected ESPHome nodes ahead of time, storing them under `/config/www/esphome_bins/` so they are instantly available via `/local/` URLs.
-- **Push (Install)** at a scheduled maintenance window, triggering each device’s `update.install` so the device downloads and flashes its **prebuilt** binary from your Home Assistant web server.
+This project provides a **two-phase ESPHome firmware update system** for Home Assistant:
 
-### Why use it
-- Reduce downtime during maintenance windows because the compile step is already done.
-- Keep tight control of *when* devices update.
-- Get clear, shareable **reports** (JSON and Markdown) for audit and troubleshooting.
-- Optional **mobile notifications** when staging starts and when push completes.
+1. **Stage (Compile):** Build firmware binaries for your ESPHome devices ahead of time.  
+   - Compiles all device YAMLs on your Home Assistant server.  
+   - Saves binaries to `/config/www/esphome_bins/`.  
+   - Generates JSON and Markdown reports to show which devices compiled successfully.
 
+2. **Push (Install):** At your chosen maintenance time, update devices in bulk.  
+   - Each device downloads its precompiled binary from your Home Assistant server (`/local/esphome_bins/<node>.bin`).  
+   - Installs are faster because the compile step is already done.  
+   - Optional mobile notifications tell you when staging starts and when push completes.
 
-Two-phase firmware workflow:
-1. **Stage**: compile node YAMLs and place binaries in `/config/www/esphome_bins/`  
-2. **Push**: at a maintenance window, call `update.install` on each device’s “staged firmware” entity so it downloads and flashes `/local/esphome_bins/<node>.bin`
+✅ Result: Less downtime, predictable updates, and clear reporting.
 
-## Components
+---
 
-- **Blueprint**: `blueprints/automation/esphome/esphome_staged_updates.yaml`  
-  Schedule checks (daily, weekly, monthly), select devices, choose **compile only** or **compile and push**, and post reports.
+## 🔧 Installation Instructions (Beginner-Friendly)
 
-- **Staging script**: `scripts/stage_esphome_bins.sh`  
-  Usage: `bash scripts/stage_esphome_bins.sh <binaries_path> <nodes_csv>`  
-  Writes `last_run.json` and `last_run.md` to the binaries directory.
+### 1. Download this project
+1. Click the green **Code** button on this repository page.  
+2. Choose **Download ZIP**.  
+3. Unzip the file on your computer.  
+4. Copy the whole folder `esphome-staged-updates` into your Home Assistant `/config/` directory.  
 
-- **Device snippet**: `device_snippets/http_request_updater.yaml`  
-  Add to each node one time so the device can pull staged firmware by URL.
+You should now have:  
+```
+/config/esphome-staged-updates/
+```
 
-- **HA config snippets**: `ha/configuration_snippet.yaml`, example automations, and optional “push now” script.
+---
 
-## Install
+### 2. Create the folder for staged binaries
+Inside your `/config/www/` directory, create a folder called `esphome_bins`.  
+So you’ll have:  
+```
+/config/www/esphome_bins/
+```
 
-1. Copy this folder into your Home Assistant `/config` as `/config/esphome-staged-updates`.
-2. Add the shell_command from `ha/configuration_snippet.yaml` to your configuration and reload.
-3. Place the blueprint file under `/config/blueprints/automation/esphome/` then import it from HA UI.
-4. Create `/config/www/esphome_bins` once, or let the script create it.
-5. Include `device_snippets/http_request_updater.yaml` in each node and flash once so the new updater is on-device.
+(Home Assistant automatically makes files in `/config/www/` available at `http://<HA>/local/...`.)
 
-## Reports
+---
 
-- JSON: `http://<HA>/local/esphome_bins/last_run.json`  
-- Markdown: `http://<HA>/local/esphome_bins/last_run.md`
+### 3. Add the shell command
+Open your **configuration.yaml** file and paste this at the bottom:
 
-These list node name, YAML, status, and the saved binary path. Use the Markdown link in notifications for a quick human-readable view.
+```yaml
+shell_command:
+  esphome_stage_bins: 'bash /config/esphome-staged-updates/scripts/stage_esphome_bins.sh "{{ binaries_path }}" "{{ nodes_csv }}"'
+```
 
-## Filename rule
+💡 Tip: If you already have a `shell_command:` section, just add the `esphome_stage_bins:` line under it.  
 
-Keep **YAML filename stem == node_name == binary filename**. Example: `kitchen-sensor.yaml` becomes `kitchen-sensor.bin`.  
-The blueprint derives node names from entities ending with `_staged_firmware` and uses those to compile and push.
+Then restart Home Assistant to apply the change.
 
-## Notes
+---
 
-- First time after adding `ota: platform: http_request` and `update: platform: http_request`, flash once by your usual method.
-- Deep sleep devices will update when awake and you trigger `update.install`. Consider a longer window or device-specific scheduling.
-- For richer tables in Markdown reports, install `jq` inside your HA host or container.
+### 4. Import the Blueprint
+1. Copy this link:  
+   ```
+   https://github.com/<your-username>/esphome-staged-updates/blob/main/blueprints/automation/esphome/esphome_staged_updates.yaml
+   ```
+2. In Home Assistant, go to: **Settings → Automations & Scenes → Blueprints → Import Blueprint**.  
+3. Paste the link and click **Preview → Import**.  
+4. You will now see **ESPHome Staged Updates (Compile or Compile+Push)** in your Blueprint list.
+
+---
+
+### 5. Update each ESPHome device (one time only)
+Each ESPHome device needs a small snippet added so it can fetch staged binaries later.
+
+1. Open the device’s YAML file in ESPHome.  
+2. Add this block (adjust `devicename` to match your node’s name/YAML filename):  
+
+```yaml
+substitutions:
+  node_name: ${devicename}
+  friendly_name: ${devicename}
+
+http_request:
+
+ota:
+  - platform: esphome
+  - platform: http_request
+
+update:
+  - platform: http_request
+    name: "${friendly_name} staged firmware"
+    source: "http://homeassistant.local:8123/local/esphome_bins/manifest.json"
+```
+
+3. Re-flash the device once (USB or OTA).  
+   After this, the device will have a new “staged firmware” update entity in Home Assistant.
+
+---
+
+### 6. Create your automation from the Blueprint
+1. Go to **Settings → Automations & Scenes → + Create Automation → From Blueprint**.  
+2. Choose **ESPHome Staged Updates (Compile or Compile+Push)**.  
+3. Fill in the options:
+   - How often to check (daily/weekly/monthly).  
+   - What time of day to check.  
+   - Which ESPHome devices to include (all, or select individually).  
+   - Whether to **Compile only** or **Compile and Push**.  
+   - If you choose **Compile and Push**, also pick the “maintenance window” time when updates should actually be installed.  
+   - Optional: enter a `notify.mobile_app_xxx` service if you want mobile notifications.
+
+---
+
+### 7. Done!
+- When an ESPHome update is detected, the automation will **compile** the binaries in advance.  
+- At your chosen maintenance time, it will **push** the updates to the devices you selected.  
+- Reports are saved as:  
+  - JSON: `http://<HA>/local/esphome_bins/last_run.json`  
+  - Markdown (easy to read): `http://<HA>/local/esphome_bins/last_run.md`
+
+💡 **Tip for beginners**:  
+If something goes wrong, check **Settings → System → Logs** in Home Assistant. Errors from the staging script or blueprint will show there.
+
+---
+
+## 📊 Reports
+
+- **JSON report** — structured data about compile results (for scripts or advanced users).  
+- **Markdown report** — human-readable summary with a table of device names, YAMLs, status, and binary locations.
+
+Both are saved in `/config/www/esphome_bins/` and available via:  
+- `http://<HA>/local/esphome_bins/last_run.json`  
+- `http://<HA>/local/esphome_bins/last_run.md`
+
+---
+
+## 🚀 Features at a glance
+- Detects ESPHome releases automatically.  
+- Lets you choose which devices to update.  
+- Two modes: **Compile only** or **Compile and Push**.  
+- Scheduled, predictable updates.  
+- Clear notifications + optional mobile push.  
+- Reports every compile/push result.
+
+---
